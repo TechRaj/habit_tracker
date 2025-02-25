@@ -14,6 +14,7 @@ class _LifestyleScreenState extends State<LifestyleScreen> {
   @override
   void initState() {
     super.initState();
+    checkAndResetHabits();
     _loadHabits();
   }
 
@@ -38,6 +39,22 @@ class _LifestyleScreenState extends State<LifestyleScreen> {
       _saveHabits();
     }
   }
+
+void checkAndResetHabits() async {
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  String today = DateTime.now().toString().substring(0, 10); // YYYY-MM-DD
+  String? lastSavedDate = prefs.getString('last_saved_date');
+
+  if (lastSavedDate == null || lastSavedDate != today) {
+    setState(() {
+      for (var habit in habits) {
+        habit.progress = 0; // Reset progress for the new day
+      }
+    });
+    prefs.setString('last_saved_date', today);
+    _saveHabits();
+  }
+}
 
   void _saveHabits() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();

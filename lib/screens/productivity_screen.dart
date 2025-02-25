@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/habit.dart';
+import 'package:confetti/confetti.dart';
+
+late ConfettiController _confettiController;
 
 class ProductivityScreen extends StatefulWidget {
   @override
@@ -14,7 +17,9 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
   @override
   void initState() {
     super.initState();
+    checkAndResetHabits();
     _loadHabits();
+    _confettiController = ConfettiController(duration: Duration(seconds: 1));
   }
 
   void _loadHabits() async {
@@ -39,30 +44,50 @@ class _ProductivityScreenState extends State<ProductivityScreen> {
     }
   }
 
+void checkAndResetHabits() async {
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  String today = DateTime.now().toString().substring(0, 10); // YYYY-MM-DD
+  String? lastSavedDate = prefs.getString('last_saved_date');
+
+  if (lastSavedDate == null || lastSavedDate != today) {
+    setState(() {
+      for (var habit in habits) {
+        habit.progress = 0; // Reset progress for the new day
+      }
+    });
+    prefs.setString('last_saved_date', today);
+    _saveHabits();
+  }
+}
+
   void _saveHabits() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     prefs.setString('productivity_habits', json.encode(habits.map((h) => h.toJson()).toList()));
   }
 
+  void _showConfetti() {
+    _confettiController.play();
+  }
+
   void _updateHabitProgress(int index, int value) {
     setState(() {
       habits[index].progress = value;
-      if (habits[index].progress >= habits[index].goal) {
+      bool completed = habits[index].progress >= habits[index].goal;
+      if (completed && !habits[index].isCompleted) {
+        habits[index].streak += 1;
         habits[index].isCompleted = true;
-      } else {
+        _showConfetti(); // Show confetti
+      } else if (!completed) {
         habits[index].isCompleted = false;
       }
+      _saveHabits(); // 🔥 Save progress & streak updates to storage
     });
-    _saveHabits();
   }
 
   void _incrementBooleanHabit(int index, int change) {
-    setState(() {
-      habits[index].progress += change;
-      if (habits[index].progress < 0) habits[index].progress = 0;
-      habits[index].isCompleted = habits[index].progress > 0;
-    });
-    _saveHabits();
+    int newValue = (habits[index].progress + change).clamp(0, habits[index].goal);
+
+    _updateHabitProgress(index, newValue);
   }
 
   void _showNumericInputDialog(int index) {
@@ -232,70 +257,91 @@ void _showAddHabitDialog() {
       },
     );
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text("📖 Productivity Habits")),
-      body: ListView.builder(
-        itemCount: habits.length,
-        itemBuilder: (context, index) {
-          bool isBoolean = habits[index].goal == 1;
-          bool useButtons = habits[index].goal <= 10; // UI switch condition
+      body: Stack( // Wrap in Stack to overlay confetti on the UI
+        children: [
+          ListView.builder(
+            itemCount: habits.length,
+            itemBuilder: (context, index) {
+              bool isBoolean = habits[index].goal == 1;
+              bool useButtons = habits[index].goal <= 10; // UI switch condition
 
-          return Dismissible(
-            key: Key(habits[index].name),
-            direction: DismissDirection.endToStart,
-            background: Container(
-              color: Colors.red,
-              alignment: Alignment.centerRight,
-              padding: EdgeInsets.symmetric(horizontal: 20),
-              child: Icon(Icons.delete, color: Colors.white),
-            ),
-            confirmDismiss: (direction) async {
-              return await _showDeleteConfirmationDialog(index);
-            },
-            child: Card(
-              child: ListTile(
-                title: Text(habits[index].name),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    LinearProgressIndicator(
-                      value: habits[index].progress / habits[index].goal,
-                      backgroundColor: Colors.grey[300],
-                      color: habits[index].progress >= habits[index].goal ? Colors.green : Colors.blue,
-                      minHeight: 8,
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              return Dismissible(
+                key: Key(habits[index].name),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  color: Colors.red,
+                  alignment: Alignment.centerRight,
+                  padding: EdgeInsets.symmetric(horizontal: 20),
+                  child: Icon(Icons.delete, color: Colors.white),
+                ),
+                confirmDismiss: (direction) async {
+                  return await _showDeleteConfirmationDialog(index);
+                },
+                child: Card(
+                  child: ListTile(
+                    title: Text(habits[index].name),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text("${habits[index].progress}/${habits[index].goal}"),
-                        isBoolean || useButtons
-                            ? Row(
-                                children: [
-                                  IconButton(
-                                    icon: Icon(Icons.remove, color: Colors.red),
-                                    onPressed: () => _incrementBooleanHabit(index, -1),
+                        LinearProgressIndicator(
+                          value: habits[index].progress / habits[index].goal,
+                          backgroundColor: Colors.grey[300],
+                          color: habits[index].progress >= habits[index].goal
+                              ? Colors.green
+                              : Colors.blue,
+                          minHeight: 8,
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text("${habits[index].progress}/${habits[index].goal}"),
+                            isBoolean || useButtons
+                                ? Row(
+                                    children: [
+                                      IconButton(
+                                        icon: Icon(Icons.remove, color: Colors.red),
+                                        onPressed: () => _incrementBooleanHabit(index, -1),
+                                      ),
+                                      IconButton(
+                                        icon: Icon(Icons.add, color: Colors.green),
+                                        onPressed: () => _incrementBooleanHabit(index, 1),
+                                      ),
+                                    ],
+                                  )
+                                : ElevatedButton(
+                                    onPressed: () => _showNumericInputDialog(index),
+                                    child: Text("Enter Value"),
                                   ),
-                                  IconButton(
-                                    icon: Icon(Icons.add, color: Colors.green),
-                                    onPressed: () => _incrementBooleanHabit(index, 1),
-                                  ),
-                                ],
-                              )
-                            : ElevatedButton(
-                                onPressed: () => _showNumericInputDialog(index),
-                                child: Text("Enter Value"),
-                              ),
+                          ],
+                        ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
+              );
+            },
+          ),
+
+          // 🔥 Confetti Effect (Always on Top)
+          Align(
+            alignment: Alignment.topCenter,
+            child: ConfettiWidget(
+              confettiController: _confettiController,
+              blastDirection: -3.14 / 2, // Shoots confetti upwards
+              blastDirectionality: BlastDirectionality.explosive, // Cover more screen
+              colors: [Colors.blue, Colors.green, Colors.purple, Colors.orange],
+              numberOfParticles: 50, // More confetti
+              gravity: 1, // Make confetti fall faster
+              maxBlastForce: 15, // Increase explosion force
+              minBlastForce: 8,  // Keep some variety in confetti spread
+              shouldLoop: false,
             ),
-          );
-        },
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddHabitDialog,
