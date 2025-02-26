@@ -14,6 +14,8 @@ class _MainScreenState extends State<MainScreen> {
   int totalHabits = 0;
   int totalStreaks = 0;
   Habit? mostConsistentHabit;
+  int weeklyCompletionRate = 0; // 📊 Weekly Completion Rate
+  int consistencyScore = 0; // 📅 Habit Consistency Score
 
   @override
   void initState() {
@@ -23,8 +25,7 @@ class _MainScreenState extends State<MainScreen> {
 
   void _loadHabits() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    
-    // Load habits from all categories
+  
     List<String> keys = ['health_habits', 'productivity_habits', 'lifestyle_habits'];
     List<Habit> allHabits = [];
 
@@ -38,12 +39,20 @@ class _MainScreenState extends State<MainScreen> {
       }
     }
 
-    // Calculate stats
+    // Calculate streaks and best habit
     int completed = allHabits.where((h) => h.isCompleted).length;
     int streaks = allHabits.fold(0, (sum, h) => sum + h.streak);
     Habit? topHabit = allHabits.isNotEmpty
         ? allHabits.reduce((a, b) => a.streak > b.streak ? a : b)
         : null;
+
+    // 📊 Weekly Completion Rate
+    int weeklyCompleted = prefs.getInt('weeklyCompleted') ?? 0;
+    int weeklyTotal = prefs.getInt('weeklyTotal') ?? 1;
+    int weeklyCompletionRate = ((weeklyCompleted / weeklyTotal) * 100).toInt();
+
+    // 📅 Habit Consistency Score
+    int consistencyScore = _calculateConsistency(allHabits);
 
     setState(() {
       habits = allHabits;
@@ -51,44 +60,61 @@ class _MainScreenState extends State<MainScreen> {
       totalHabits = allHabits.length;
       totalStreaks = streaks;
       mostConsistentHabit = topHabit;
+      this.weeklyCompletionRate = weeklyCompletionRate;
+      this.consistencyScore = consistencyScore;
     });
   }
 
-  Widget _buildStatsSection() {
-    return Card(
-      margin: EdgeInsets.all(12),
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text("📊 Daily Progress", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            SizedBox(height: 8),
-            LinearProgressIndicator(
-              value: totalHabits > 0 ? completedToday / totalHabits : 0,
-              backgroundColor: Colors.grey[300],
-              color: Colors.blue,
-              minHeight: 10,
-            ),
-            SizedBox(height: 8),
-            Text("Completed: $completedToday / $totalHabits habits"),
-            SizedBox(height: 12),
+  int _calculateConsistency(List<Habit> habits) {
+    if (habits.isEmpty) return 0;
 
-            Text("🔥 Longest Streak", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            Text("Total Streaks: $totalStreaks days"),
+    int totalDaysTracked = 7; // Last 7 days
+    int totalCompletions = habits.fold(0, (sum, h) => sum + (h.streak > 0 ? 1 : 0));
 
-            if (mostConsistentHabit != null) ...[
-              SizedBox(height: 12),
-              Text("🏆 Most Consistent Habit:", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              Text("${mostConsistentHabit!.name} (${mostConsistentHabit!.streak} days streak)"),
-            ],
-          ],
-        ),
-      ),
-    );
+    return ((totalCompletions / (habits.length * totalDaysTracked)) * 100).toInt();
   }
+
+Widget _buildStatsSection() {
+  return Card(
+    margin: EdgeInsets.all(12),
+    elevation: 4,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    child: Padding(
+      padding: EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text("📊 Daily Progress", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          SizedBox(height: 8),
+          LinearProgressIndicator(
+            value: totalHabits > 0 ? completedToday / totalHabits : 0,
+            backgroundColor: Colors.grey[300],
+            color: Colors.blue,
+            minHeight: 10,
+          ),
+          SizedBox(height: 8),
+          Text("Completed: $completedToday / $totalHabits habits"),
+          SizedBox(height: 12),
+
+          Text("🔥 Longest Streak", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text("Total Streaks: $totalStreaks days"),
+          
+          if (mostConsistentHabit != null) ...[
+            SizedBox(height: 12),
+            Text("🏆 Best Performing Habit:", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text("${mostConsistentHabit!.name} (${mostConsistentHabit!.streak} days streak)"),
+          ],
+
+          SizedBox(height: 12),
+          Text("📊 Weekly Completion Rate: $weeklyCompletionRate%", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+
+          SizedBox(height: 12),
+          Text("📅 Habit Consistency: $consistencyScore%", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {
