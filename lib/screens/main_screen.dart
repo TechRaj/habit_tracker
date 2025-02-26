@@ -16,6 +16,8 @@ class _MainScreenState extends State<MainScreen> {
   Habit? mostConsistentHabit;
   int weeklyCompletionRate = 0; // 📊 Weekly Completion Rate
   int consistencyScore = 0; // 📅 Habit Consistency Score
+  String emojiGraph = "📅 Past 7 Days: ⚪⚪⚪⚪⚪⚪⚪"; // Default empty graph
+  String weeklyProgressGraph = "⚪⚪⚪⚪⚪⚪⚪"; // Default empty graph
 
   @override
   void initState() {
@@ -46,10 +48,22 @@ class _MainScreenState extends State<MainScreen> {
         ? allHabits.reduce((a, b) => a.streak > b.streak ? a : b)
         : null;
 
+    // 📊 Track Last 7 Days for Emoji Graph
+    List<String> weeklyHistory = prefs.getStringList('weeklyHistory')?.toList() ?? List.filled(7, '⚪').toList();
+    if (completed > 0) {
+      weeklyHistory.add('🟢'); // Mark as completed
+    } else {
+      weeklyHistory.add('⚪'); // Mark as missed
+    }
+    if (weeklyHistory.length > 7) weeklyHistory.removeAt(0); // Keep last 7 days only
+    prefs.setStringList('weeklyHistory', weeklyHistory);
+
+    // 📊 Generate Weekly Completion Graph (🔵 = completed, ⚪ = missed)
+    this.weeklyProgressGraph = weeklyHistory.map((day) => day == '🟢' ? '🔵' : '⚪').join('');
+    
     // 📊 Weekly Completion Rate
-    int weeklyCompleted = prefs.getInt('weeklyCompleted') ?? 0;
-    int weeklyTotal = prefs.getInt('weeklyTotal') ?? 1;
-    int weeklyCompletionRate = ((weeklyCompleted / weeklyTotal) * 100).toInt();
+    int weeklyCompleted = weeklyHistory.where((day) => day == '🟢').length;
+    int weeklyCompletionRate = ((weeklyCompleted / 7) * 100).toInt();
 
     // 📅 Habit Consistency Score
     int consistencyScore = _calculateConsistency(allHabits);
@@ -62,6 +76,7 @@ class _MainScreenState extends State<MainScreen> {
       mostConsistentHabit = topHabit;
       this.weeklyCompletionRate = weeklyCompletionRate;
       this.consistencyScore = consistencyScore;
+      this.emojiGraph = "📅 Past 7 Days: " + weeklyHistory.join(' '); // 🔥 Assign to class variable
     });
   }
 
@@ -99,14 +114,28 @@ Widget _buildStatsSection() {
           Text("🔥 Longest Streak", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           Text("Total Streaks: $totalStreaks days"),
           
-          if (mostConsistentHabit != null) ...[
-            SizedBox(height: 12),
-            Text("🏆 Best Performing Habit:", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            Text("${mostConsistentHabit!.name} (${mostConsistentHabit!.streak} days streak)"),
-          ],
+          SizedBox(height: 12),
+          Text("🏆 Best Performing Habit", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+
+          if (mostConsistentHabit != null && mostConsistentHabit!.streak > 0) ...[
+            Text("${mostConsistentHabit!.name} - ${mostConsistentHabit!.streak} days 🔥", style: TextStyle(fontSize: 16)),
+          ] else ...[
+            Text("🏆 Get started! Complete a habit today.", style: TextStyle(fontSize: 16, color: Colors.grey)),
+            ],  
 
           SizedBox(height: 12),
-          Text("📊 Weekly Completion Rate: $weeklyCompletionRate%", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text(emojiGraph, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("📊 Weekly Completion", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              SizedBox(height: 4),
+              Text(weeklyProgressGraph, style: TextStyle(fontSize: 20)), // 🔥 Display emoji bar graph
+              Text("$weeklyCompletionRate% completed", style: TextStyle(fontSize: 16)),
+              if (weeklyCompletionRate < 50) // 🔥 Suggest improvement if too low
+                Text("⚠️ Try to complete more habits this week!", style: TextStyle(fontSize: 14, color: Colors.red)),
+            ],
+          ),
 
           SizedBox(height: 12),
           Text("📅 Habit Consistency: $consistencyScore%", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),

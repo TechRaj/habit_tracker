@@ -310,10 +310,10 @@ void _updateHabitProgress(int index, int value) {
                               width: 60, // Increase width slightly for better spacing
                               alignment: Alignment.center,
                               child: Text(
-                                "🔥 ${habits[index].streak}",
+                                habits[index].streak > 0 ? "🔥 ${habits[index].streak}" : "❄️ 0",
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.orange,
+                                  color: habits[index].streak > 0 ? Colors.orange : Colors.blue,
                                   fontSize: 20, // Reduce size slightly for balance
                                 ),
                               ),
