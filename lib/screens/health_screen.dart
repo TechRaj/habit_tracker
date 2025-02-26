@@ -290,33 +290,67 @@ void _updateHabitProgress(int index, int value) {
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        LinearProgressIndicator(
-                          value: habits[index].progress / habits[index].goal,
-                          backgroundColor: Colors.grey[300],
-                          color: habits[index].progress >= habits[index].goal ? Colors.green : Colors.blue,
-                          minHeight: 8,
-                        ),
+                        // ✅ Shortened Progress Bar with Dedicated Streak Space
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
+                            Expanded(
+                              flex: 3, // 75% width for progress bar
+                              child: LinearProgressIndicator(
+                                value: habits[index].progress / habits[index].goal,
+                                backgroundColor: Colors.grey[300],
+                                color: habits[index].progress >= habits[index].goal ? Colors.green : Colors.blue,
+                                minHeight: 12,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                            ),
+                            SizedBox(width: 12), // Space between progress bar and streak counter
+
+                            // ✅ Streak Counter 🔥 (Fixed Width)
+                            Container(
+                              width: 60, // Increase width slightly for better spacing
+                              alignment: Alignment.center,
+                              child: Text(
+                                "🔥 ${habits[index].streak}",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.orange,
+                                  fontSize: 20, // Reduce size slightly for balance
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 4), // Space between progress bar and buttons
+
+                        // ✅ Row: Progress Text & Right-Aligned Buttons
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween, // Ensures proper spacing
+                          children: [
+                            // ✅ Progress Count
                             Text("${habits[index].progress}/${habits[index].goal}"),
-                            isBoolean || useButtons
-                                ? Row(
-                                    children: [
-                                      IconButton(
-                                        icon: Icon(Icons.remove, color: Colors.red),
-                                        onPressed: () => _incrementBooleanHabit(index, -1),
-                                      ),
-                                      IconButton(
-                                        icon: Icon(Icons.add, color: Colors.green),
-                                        onPressed: () => _incrementBooleanHabit(index, 1),
-                                      ),
-                                    ],
-                                  )
-                                : ElevatedButton(
-                                    onPressed: () => _showNumericInputDialog(index),
-                                    child: Text("Enter Value"),
-                                  ),
+
+                            // ✅ Right-Aligned Buttons (No `Expanded` needed)
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: isBoolean || useButtons
+                                  ? Row(
+                                      mainAxisSize: MainAxisSize.min, // Keep buttons compact
+                                      children: [
+                                        IconButton(
+                                          icon: Icon(Icons.remove, color: Colors.red),
+                                          onPressed: () => _incrementBooleanHabit(index, -1),
+                                        ),
+                                        IconButton(
+                                          icon: Icon(Icons.add, color: Colors.green),
+                                          onPressed: () => _incrementBooleanHabit(index, 1),
+                                        ),
+                                      ],
+                                    )
+                                  : ElevatedButton(
+                                      onPressed: () => _showNumericInputDialog(index),
+                                      child: Text("Enter Value"),
+                                    ),
+                            ),
                           ],
                         ),
                       ],
