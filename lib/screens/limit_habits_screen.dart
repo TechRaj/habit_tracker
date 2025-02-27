@@ -3,28 +3,28 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/habit.dart';
 import 'package:confetti/confetti.dart';
+import 'package:vibration/vibration.dart';
 
-late ConfettiController _confettiController;
-
-class HealthScreen extends StatefulWidget {
+class LimitHabitsScreen extends StatefulWidget {
   @override
-  _HealthScreenState createState() => _HealthScreenState();
+  _LimitHabitsScreenState createState() => _LimitHabitsScreenState();
 }
 
-class _HealthScreenState extends State<HealthScreen> {
+class _LimitHabitsScreenState extends State<LimitHabitsScreen> {
   List<Habit> habits = [];
+  late ConfettiController _failConfettiController;
 
   @override
   void initState() {
     super.initState();
     checkAndResetHabits();
     _loadHabits();
-    _confettiController = ConfettiController(duration: Duration(seconds: 1));
+    _failConfettiController = ConfettiController(duration: Duration(seconds: 1)); // 👎 Negative effect
   }
 
   void _loadHabits() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? savedData = prefs.getString('health_habits');
+    String? savedData = prefs.getString('limit_habits');
     if (savedData != null) {
       setState(() {
         habits = (json.decode(savedData) as List)
@@ -34,28 +34,18 @@ class _HealthScreenState extends State<HealthScreen> {
     } else {
       setState(() {
         habits = [
-          Habit(name: "Exercise (30 min)", progress: 0, goal: 30),
-          Habit(name: "Walk 10K steps", progress: 0, goal: 10000),
-          Habit(name: "Sleep 7 hours", progress: 0, goal: 7),
-          Habit(name: "Calorie Intake", progress: 0, goal: 2000),
+          Habit(name: "Screen Time < 2 Hours", progress: 0, goal: 2),
+          Habit(name: "Social Media < 1 Hour", progress: 0, goal: 1),
+          Habit(name: "Stay Under Budget (\$50)", progress: 0, goal: 50),
         ];
       });
       _saveHabits();
     }
   }
 
-  void _saveHabits() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.setString('health_habits', json.encode(habits.map((h) => h.toJson()).toList()));
-  }
-
-  void _showConfetti() {
-    _confettiController.play();
-  }
-
   void checkAndResetHabits() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    String today = DateTime.now().toString().substring(0, 10); // YYYY-MM-DD
+    String today = DateTime.now().toString().substring(0, 10);
     String? lastSavedDate = prefs.getString('last_saved_date');
 
     if (lastSavedDate == null || lastSavedDate != today) {
@@ -69,28 +59,46 @@ class _HealthScreenState extends State<HealthScreen> {
     }
   }
 
-void _updateHabitProgress(int index, int value) {
-  setState(() {
-    habits[index].progress = value;
-    bool completed = habits[index].progress >= habits[index].goal;
+  void _saveHabits() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setString('limit_habits', json.encode(habits.map((h) => h.toJson()).toList()));
+  }
 
-    if (completed && !habits[index].isCompleted) {
-      habits[index].streak += 1;
-      habits[index].isCompleted = true;
-      _showConfetti(); // Show confetti
-    } else if (!completed) {
-      habits[index].isCompleted = false;
+  void _updateHabitProgress(int index, int value) {
+    setState(() {
+      habits[index].progress = value;
+      bool failed = habits[index].progress > habits[index].goal;
+
+      if (failed) {
+        habits[index].isCompleted = false;
+        habits[index].streak = 0; // ❌ Streak is broken
+        _triggerFailureEffects();
+      } else {
+        habits[index].isCompleted = true;
+      }
+
+      _saveHabits();
+    });
+  }
+
+  void _triggerFailureEffects() {
+    _failConfettiController.play(); // 👎 Thumbs Down Effect
+
+    if (Vibration.hasVibrator() != null) {
+      Vibration.vibrate(duration: 500); // 🚨 Short vibration feedback
     }
 
-    _saveHabits();
-  });
-
-  _saveHabits();
-}
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("👎 Oh no! You went over the limit!"),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
 
   void _incrementBooleanHabit(int index, int change) {
     int newValue = (habits[index].progress + change).clamp(0, habits[index].goal);
-
     _updateHabitProgress(index, newValue);
   }
 
@@ -261,118 +269,107 @@ void _updateHabitProgress(int index, int value) {
   }
 
   @override
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("💪 Health Habits")),
-      body: Stack( // Use Stack to overlay confetti on top of everything
+      appBar: AppBar(title: Text("🔒 Limit Habits")),
+      body: Stack(
         children: [
           ListView.builder(
             itemCount: habits.length,
             itemBuilder: (context, index) {
               bool isBoolean = habits[index].goal == 1;
-              bool useButtons = habits[index].goal <= 10; // UI switch condition
+              bool useButtons = habits[index].goal <= 10; // ✅ If goal is small, show `+` & `-` buttons
 
-              return Dismissible(
-                key: Key(habits[index].name),
-                direction: DismissDirection.endToStart,
-                background: Container(
-                  color: Colors.red,
-                  alignment: Alignment.centerRight,
-                  padding: EdgeInsets.symmetric(horizontal: 20),
-                  child: Icon(Icons.delete, color: Colors.white),
-                ),
-                confirmDismiss: (direction) async {
-                  return await _showDeleteConfirmationDialog(index);
-                },
-                child: Card(
-                  child: ListTile(
-                    title: Text(habits[index].name),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // ✅ Shortened Progress Bar with Dedicated Streak Space
-                        Row(
-                          children: [
-                            Expanded(
-                              flex: 3, // 75% width for progress bar
-                              child: LinearProgressIndicator(
-                                value: habits[index].progress / habits[index].goal,
-                                backgroundColor: Colors.grey[300],
-                                color: habits[index].progress >= habits[index].goal ? Colors.green : Colors.blue,
-                                minHeight: 12,
-                                borderRadius: BorderRadius.circular(6),
+              return Card(
+                child: ListTile(
+                  title: Text(habits[index].name),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ✅ Progress Bar
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 3, // 75% width for progress bar
+                            child: LinearProgressIndicator(
+                              value: habits[index].progress / habits[index].goal,
+                              backgroundColor: Colors.grey[300],
+                              color: habits[index].progress > habits[index].goal ? Colors.red : Colors.blue,
+                              minHeight: 12,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                          ),
+                          SizedBox(width: 12),
+
+                          // ✅ Streak Counter (🔥 or ❄️)
+                          Container(
+                            width: 60,
+                            alignment: Alignment.center,
+                            child: Text(
+                              habits[index].streak > 0 ? "🔥 ${habits[index].streak}" : "❄️ 0",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: habits[index].streak > 0 ? Colors.orange : Colors.blue,
+                                fontSize: 20,
                               ),
                             ),
-                            SizedBox(width: 12), // Space between progress bar and streak counter
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 4),
 
-                            // ✅ Streak Counter 🔥 (Fixed Width)
-                            Container(
-                              width: 60, // Increase width slightly for better spacing
-                              alignment: Alignment.center,
-                              child: Text(
-                                habits[index].streak > 0 ? "🔥 ${habits[index].streak}" : "❄️ 0",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: habits[index].streak > 0 ? Colors.orange : Colors.blue,
-                                  fontSize: 20, // Reduce size slightly for balance
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 4), // Space between progress bar and buttons
+                      // ✅ Row: Progress Count & Right-Aligned Buttons
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // ✅ Progress Text
+                          Text("${habits[index].progress}/${habits[index].goal}"),
 
-                        // ✅ Row: Progress Text & Right-Aligned Buttons
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween, // Ensures proper spacing
-                          children: [
-                            // ✅ Progress Count
-                            Text("${habits[index].progress}/${habits[index].goal}"),
-
-                            // ✅ Right-Aligned Buttons (No `Expanded` needed)
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: isBoolean || useButtons
-                                  ? Row(
-                                      mainAxisSize: MainAxisSize.min, // Keep buttons compact
-                                      children: [
-                                        IconButton(
-                                          icon: Icon(Icons.remove, color: Colors.red),
-                                          onPressed: () => _incrementBooleanHabit(index, -1),
-                                        ),
-                                        IconButton(
-                                          icon: Icon(Icons.add, color: Colors.green),
-                                          onPressed: () => _incrementBooleanHabit(index, 1),
-                                        ),
-                                      ],
-                                    )
-                                  : ElevatedButton(
-                                      onPressed: () => _showNumericInputDialog(index),
-                                      child: Text("Enter Value"),
-                                    ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                          // ✅ Right-Aligned Buttons
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: isBoolean || useButtons
+                                ? Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: Icon(Icons.remove, color: Colors.red),
+                                        onPressed: () => _incrementBooleanHabit(index, -1),
+                                      ),
+                                      IconButton(
+                                        icon: Icon(Icons.add, color: Colors.green),
+                                        onPressed: () => _incrementBooleanHabit(index, 1),
+                                      ),
+                                    ],
+                                  )
+                                : ElevatedButton(
+                                    onPressed: () => _showNumericInputDialog(index),
+                                    child: Text("Enter Value"),
+                                  ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               );
             },
           ),
 
-          // 🔥 Confetti Effect (Always on Top)
+          // 👎 Thumbs Down Rain Effect
           Align(
             alignment: Alignment.topCenter,
             child: ConfettiWidget(
-              confettiController: _confettiController,
-              blastDirection: -3.14 / 2, // Shoots confetti upwards
-              blastDirectionality: BlastDirectionality.explosive, // Cover more screen
-              colors: [Colors.blue, Colors.green, Colors.purple, Colors.orange],
-              numberOfParticles: 50, // More confetti
-              gravity: 1, // Make confetti fall faster
-              maxBlastForce: 15, // Increase explosion force
-              minBlastForce: 8,  // Keep some variety in confetti spread
+              confettiController: _failConfettiController,
+              blastDirection: 3.14 / 2, // Falls downward
+              blastDirectionality: BlastDirectionality.explosive,
+              colors: [Colors.red, Colors.black], // Failure colors
+              numberOfParticles: 40,
+              gravity: 1,
+              minBlastForce: 5,
+              maxBlastForce: 10,
               shouldLoop: false,
             ),
           ),

@@ -24,12 +24,12 @@ class _MainScreenState extends State<MainScreen> {
     super.initState();
     _loadHabits();
   }
-
   void _loadHabits() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-  
-    List<String> keys = ['health_habits', 'productivity_habits', 'lifestyle_habits'];
-    List<Habit> allHabits = [];
+
+    List<String> keys = ['power_habits', 'limit_habits']; // 🚀🔒
+    List<Habit> powerHabits = []; // 🚀 Power Habits
+    List<Habit> limitHabits = []; // 🔒 Limit Habits
 
     for (String key in keys) {
       String? savedData = prefs.getString(key);
@@ -37,19 +37,30 @@ class _MainScreenState extends State<MainScreen> {
         List<Habit> habitsList = (json.decode(savedData) as List)
             .map((item) => Habit.fromJson(item))
             .toList();
-        allHabits.addAll(habitsList);
+
+        for (var habit in habitsList) {
+          if (habit.goal > 0) {
+            powerHabits.add(habit);
+          } else {
+            limitHabits.add(habit);
+          }
+        }
       }
     }
 
-    // Calculate streaks and best habit
+    // ✅ Combine all habits into one list
+    List<Habit> allHabits = [...powerHabits, ...limitHabits];
+
+    // ✅ Calculate streaks & best habit
     int completed = allHabits.where((h) => h.isCompleted).length;
     int streaks = allHabits.fold(0, (sum, h) => sum + h.streak);
     Habit? topHabit = allHabits.isNotEmpty
         ? allHabits.reduce((a, b) => a.streak > b.streak ? a : b)
         : null;
 
-    // 📊 Track Last 7 Days for Emoji Graph
-    List<String> weeklyHistory = prefs.getStringList('weeklyHistory')?.toList() ?? List.filled(7, '⚪').toList();
+    // ✅ Track Last 7 Days for Emoji Graph
+    List<String> weeklyHistory =
+        prefs.getStringList('weeklyHistory')?.toList() ?? List.filled(7, '⚪').toList();
     if (completed > 0) {
       weeklyHistory.add('🟢'); // Mark as completed
     } else {
@@ -58,16 +69,17 @@ class _MainScreenState extends State<MainScreen> {
     if (weeklyHistory.length > 7) weeklyHistory.removeAt(0); // Keep last 7 days only
     prefs.setStringList('weeklyHistory', weeklyHistory);
 
-    // 📊 Generate Weekly Completion Graph (🔵 = completed, ⚪ = missed)
+    // ✅ Ensure weeklyProgressGraph updates AFTER saving history
     this.weeklyProgressGraph = weeklyHistory.map((day) => day == '🟢' ? '🔵' : '⚪').join('');
-    
-    // 📊 Weekly Completion Rate
+
+    // ✅ Weekly Completion Rate
     int weeklyCompleted = weeklyHistory.where((day) => day == '🟢').length;
     int weeklyCompletionRate = ((weeklyCompleted / 7) * 100).toInt();
 
-    // 📅 Habit Consistency Score
+    // ✅ Habit Consistency Score
     int consistencyScore = _calculateConsistency(allHabits);
 
+    // ✅ Update UI
     setState(() {
       habits = allHabits;
       completedToday = completed;

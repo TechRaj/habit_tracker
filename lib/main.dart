@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'screens/main_screen.dart';
-import 'screens/health_screen.dart';
-import 'screens/productivity_screen.dart';
-import 'screens/lifestyle_screen.dart';
+import 'screens/main_screen.dart'; // Main Dashboard with Stats
+import 'screens/power_habits_screen.dart'; // 🚀 Power Habits
+import 'screens/limit_habits_screen.dart'; // 🔒 Limit Habits
 
 void main() {
   runApp(HabitTrackerApp());
@@ -14,8 +13,11 @@ class HabitTrackerApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Habit Tracker',
-      theme: ThemeData(primarySwatch: Colors.blue),
-      home: HomePage(),
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        scaffoldBackgroundColor: Colors.white,
+      ),
+      home: HomePage(), // 🌟 Main Navigation (Power & Limit Habits)
     );
   }
 }
@@ -28,11 +30,11 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
 
+  // 🚀 New Pages: Main Dashboard, Power Habits, Limit Habits
   final List<Widget> _pages = [
-    MainScreen(),
-    HealthScreen(),
-    ProductivityScreen(),
-    LifestyleScreen(),
+    MainScreen(), // 📊 Main Insights & Streaks
+    PowerHabitsScreen(), // 🚀 Build Good Habits
+    LimitHabitsScreen(), // 🔒 Reduce Negative Habits
   ];
 
   void _onItemTapped(int index) {
@@ -49,9 +51,8 @@ class _HomePageState extends State<HomePage> {
         type: BottomNavigationBarType.fixed,
         items: [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-          BottomNavigationBarItem(icon: Icon(Icons.fitness_center), label: "Health"),
-          BottomNavigationBarItem(icon: Icon(Icons.work), label: "Productivity"),
-          BottomNavigationBarItem(icon: Icon(Icons.self_improvement), label: "Lifestyle"),
+          BottomNavigationBarItem(icon: Icon(Icons.flash_on), label: "Power Habits"), // 🚀
+          BottomNavigationBarItem(icon: Icon(Icons.block), label: "Limit Habits"), // 🔒
         ],
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
