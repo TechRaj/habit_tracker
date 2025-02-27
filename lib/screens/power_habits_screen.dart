@@ -97,7 +97,8 @@ void _updateHabitProgress(int index, int value) {
 }
 
   void _incrementBooleanHabit(int index, int change) {
-    int newValue = (habits[index].progress + change).clamp(0, habits[index].goal);
+    int newValue = habits[index].progress + change; // ✅ Allow exceeding goal
+    if (newValue < 0) newValue = 0; // Prevent negative values
 
     _updateHabitProgress(index, newValue);
   }

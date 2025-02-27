@@ -98,7 +98,8 @@ class _LimitHabitsScreenState extends State<LimitHabitsScreen> {
   }
 
   void _incrementBooleanHabit(int index, int change) {
-    int newValue = (habits[index].progress + change).clamp(0, habits[index].goal);
+    int newValue = habits[index].progress + change; // ✅ Allow exceeding goal
+    if (newValue < 0) newValue = 0; // Prevent negative values
     _updateHabitProgress(index, newValue);
   }
 
@@ -282,76 +283,89 @@ class _LimitHabitsScreenState extends State<LimitHabitsScreen> {
               bool isBoolean = habits[index].goal == 1;
               bool useButtons = habits[index].goal <= 10; // ✅ If goal is small, show `+` & `-` buttons
 
-              return Card(
-                child: ListTile(
-                  title: Text(habits[index].name),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // ✅ Progress Bar
-                      Row(
-                        children: [
-                          Expanded(
-                            flex: 3, // 75% width for progress bar
-                            child: LinearProgressIndicator(
-                              value: habits[index].progress / habits[index].goal,
-                              backgroundColor: Colors.grey[300],
-                              color: habits[index].progress > habits[index].goal ? Colors.red : Colors.blue,
-                              minHeight: 12,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                          ),
-                          SizedBox(width: 12),
-
-                          // ✅ Streak Counter (🔥 or ❄️)
-                          Container(
-                            width: 60,
-                            alignment: Alignment.center,
-                            child: Text(
-                              habits[index].streak > 0 ? "🔥 ${habits[index].streak}" : "❄️ 0",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: habits[index].streak > 0 ? Colors.orange : Colors.blue,
-                                fontSize: 20,
+              return Dismissible(
+                key: Key(habits[index].name), // Unique key for each habit
+                direction: DismissDirection.endToStart, // Swipe left to delete
+                background: Container(
+                  color: Colors.red,
+                  alignment: Alignment.centerRight,
+                  padding: EdgeInsets.symmetric(horizontal: 20),
+                  child: Icon(Icons.delete, color: Colors.white),
+                ),
+                confirmDismiss: (direction) async {
+                  return await _showDeleteConfirmationDialog(index);
+                },
+                child: Card(
+                  child: ListTile(
+                    title: Text(habits[index].name),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // ✅ Progress Bar
+                        Row(
+                          children: [
+                            Expanded(
+                              flex: 3, // 75% width for progress bar
+                              child: LinearProgressIndicator(
+                                value: habits[index].progress / habits[index].goal,
+                                backgroundColor: Colors.grey[300],
+                                color: habits[index].progress > habits[index].goal ? Colors.red : Colors.blue,
+                                minHeight: 12,
+                                borderRadius: BorderRadius.circular(6),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 4),
+                            SizedBox(width: 12),
 
-                      // ✅ Row: Progress Count & Right-Aligned Buttons
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          // ✅ Progress Text
-                          Text("${habits[index].progress}/${habits[index].goal}"),
+                            // ✅ Streak Counter (🔥 or ❄️)
+                            Container(
+                              width: 60,
+                              alignment: Alignment.center,
+                              child: Text(
+                                habits[index].streak > 0 ? "🔥 ${habits[index].streak}" : "❄️ 0",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: habits[index].streak > 0 ? Colors.orange : Colors.blue,
+                                  fontSize: 20,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 4),
 
-                          // ✅ Right-Aligned Buttons
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: isBoolean || useButtons
-                                ? Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        icon: Icon(Icons.remove, color: Colors.red),
-                                        onPressed: () => _incrementBooleanHabit(index, -1),
-                                      ),
-                                      IconButton(
-                                        icon: Icon(Icons.add, color: Colors.green),
-                                        onPressed: () => _incrementBooleanHabit(index, 1),
-                                      ),
-                                    ],
-                                  )
-                                : ElevatedButton(
-                                    onPressed: () => _showNumericInputDialog(index),
-                                    child: Text("Enter Value"),
-                                  ),
-                          ),
-                        ],
-                      ),
-                    ],
+                        // ✅ Row: Progress Count & Right-Aligned Buttons
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            // ✅ Progress Text
+                            Text("${habits[index].progress}/${habits[index].goal}"),
+
+                            // ✅ Right-Aligned Buttons
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: isBoolean || useButtons
+                                  ? Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          icon: Icon(Icons.remove, color: Colors.red),
+                                          onPressed: () => _incrementBooleanHabit(index, -1),
+                                        ),
+                                        IconButton(
+                                          icon: Icon(Icons.add, color: Colors.green),
+                                          onPressed: () => _incrementBooleanHabit(index, 1),
+                                        ),
+                                      ],
+                                    )
+                                  : ElevatedButton(
+                                      onPressed: () => _showNumericInputDialog(index),
+                                      child: Text("Enter Value"),
+                                    ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               );
