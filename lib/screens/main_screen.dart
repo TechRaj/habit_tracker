@@ -4,6 +4,8 @@ import 'dart:convert';
 import '../models/habit.dart';
 
 class MainScreen extends StatefulWidget {
+  const MainScreen({super.key});
+
   @override
   _MainScreenState createState() => _MainScreenState();
 }
@@ -70,7 +72,7 @@ class _MainScreenState extends State<MainScreen> {
     prefs.setStringList('weeklyHistory', weeklyHistory);
 
     // ✅ Ensure weeklyProgressGraph updates AFTER saving history
-    this.weeklyProgressGraph = weeklyHistory.map((day) => day == '🟢' ? '🔵' : '⚪').join('');
+    weeklyProgressGraph = weeklyHistory.map((day) => day == '🟢' ? '🔵' : '⚪').join('');
 
     // ✅ Weekly Completion Rate
     int weeklyCompleted = weeklyHistory.where((day) => day == '🟢').length;
@@ -88,7 +90,7 @@ class _MainScreenState extends State<MainScreen> {
       mostConsistentHabit = topHabit;
       this.weeklyCompletionRate = weeklyCompletionRate;
       this.consistencyScore = consistencyScore;
-      this.emojiGraph = "📅 Past 7 Days: " + weeklyHistory.join(' '); // 🔥 Assign to class variable
+      emojiGraph = "📅 Past 7 Days: ${weeklyHistory.join(' ')}"; // 🔥 Assign to class variable
     });
   }
 

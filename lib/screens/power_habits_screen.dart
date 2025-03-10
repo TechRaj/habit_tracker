@@ -6,6 +6,8 @@ import 'package:confetti/confetti.dart';
 
 
 class PowerHabitsScreen extends StatefulWidget {
+  const PowerHabitsScreen({super.key});
+
   @override
   _PowerHabitsScreenState createState() => _PowerHabitsScreenState();
 }
@@ -62,7 +64,8 @@ class _PowerHabitsScreenState extends State<PowerHabitsScreen> {
     if (lastSavedDate == null || lastSavedDate != today) {
       setState(() {
         for (var habit in habits) {
-          habit.progress = 0; // Reset progress for the new day
+          habit.progress = 0; // ✅ Reset progress
+          habit.isCompleted = false; // ✅ Reset completion flag
         }
       });
       prefs.setString('last_saved_date', today);
@@ -70,35 +73,49 @@ class _PowerHabitsScreenState extends State<PowerHabitsScreen> {
     }
   }
 
-void _updateHabitProgress(int index, int value) {
-  setState(() {
-    habits[index].progress = value;
-    bool completed = habits[index].progress >= habits[index].goal;
+  void _updateHabitProgress(int index, int value) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String today = DateTime.now().toString().substring(0, 10); // YYYY-MM-DD
+    String? lastCompletedDate = prefs.getString('last_completed_date_${habits[index].name}');
 
-    if (completed && !habits[index].isCompleted) {
-      habits[index].streak += 1;
-      habits[index].isCompleted = true;
-      _showConfetti(); // Show confetti
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+    setState(() {
+      habits[index].progress = value;
+      bool completed = habits[index].progress >= habits[index].goal;
+
+      if (completed && !habits[index].isCompleted) {
+        habits[index].isCompleted = true;
+        prefs.setString('last_completed_date_${habits[index].name}', today); // ✅ Save completion date
+      } 
+
+      // ❌ If user missed a day, streak resets
+      if (lastCompletedDate != null && lastCompletedDate != today) {
+        habits[index].streak = 0;
+      }
+
+      // ✅ If completed on a new day, increase streak
+      if (completed && lastCompletedDate != today) {
+        habits[index].streak += 1;
+        _showConfetti(); // 🎉 Show confetti
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
             content: Text("🎉 Congratulations! You've hit your goal!"),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
-        ),
-    );
-    } else if (!completed) {
-      habits[index].isCompleted = false;
-    }
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    });
 
     _saveHabits();
-  });
-
-  _saveHabits();
-}
+  }
 
   void _incrementBooleanHabit(int index, int change) {
-    int newValue = habits[index].progress + change; // ✅ Allow exceeding goal
-    if (newValue < 0) newValue = 0; // Prevent negative values
+    int newValue = habits[index].progress + change;
+    if (newValue < 0) newValue = 0;
+
+    if (change < 0 && habits[index].streak > 0 && habits[index].progress >= habits[index].goal) {
+      habits[index].streak -= 1; // ✅ Reduce streak if user decrements after completion
+    }
 
     _updateHabitProgress(index, newValue);
   }
@@ -389,8 +406,8 @@ void _updateHabitProgress(int index, int value) {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddHabitDialog,
-        child: Icon(Icons.add),
         tooltip: "Add New Habit",
+        child: Icon(Icons.add),
       ),
     );
   }

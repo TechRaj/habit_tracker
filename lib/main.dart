@@ -8,6 +8,8 @@ void main() {
 }
 
 class HabitTrackerApp extends StatelessWidget {
+  const HabitTrackerApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -23,6 +25,8 @@ class HabitTrackerApp extends StatelessWidget {
 }
 
 class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
   @override
   _HomePageState createState() => _HomePageState();
 }

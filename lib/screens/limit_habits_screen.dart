@@ -6,6 +6,8 @@ import 'package:confetti/confetti.dart';
 import 'package:vibration/vibration.dart';
 
 class LimitHabitsScreen extends StatefulWidget {
+  const LimitHabitsScreen({super.key});
+
   @override
   _LimitHabitsScreenState createState() => _LimitHabitsScreenState();
 }
@@ -45,13 +47,14 @@ class _LimitHabitsScreenState extends State<LimitHabitsScreen> {
 
   void checkAndResetHabits() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    String today = DateTime.now().toString().substring(0, 10);
+    String today = DateTime.now().toString().substring(0, 10); // YYYY-MM-DD
     String? lastSavedDate = prefs.getString('last_saved_date');
 
     if (lastSavedDate == null || lastSavedDate != today) {
       setState(() {
         for (var habit in habits) {
-          habit.progress = 0; // Reset progress for the new day
+          habit.progress = 0; // ✅ Reset progress
+          habit.isCompleted = false; // ✅ Reset completion flag
         }
       });
       prefs.setString('last_saved_date', today);
@@ -74,7 +77,10 @@ class _LimitHabitsScreenState extends State<LimitHabitsScreen> {
         habits[index].streak = 0; // ❌ Streak is broken
         _triggerFailureEffects();
       } else {
-        habits[index].isCompleted = true;
+        if (!habits[index].isCompleted) {
+          habits[index].streak += 1; // ✅ Streak increases only after 24h of success
+          habits[index].isCompleted = true;
+        }
       }
 
       _saveHabits();
@@ -84,10 +90,8 @@ class _LimitHabitsScreenState extends State<LimitHabitsScreen> {
   void _triggerFailureEffects() {
     _failConfettiController.play(); // 👎 Thumbs Down Effect
 
-    if (Vibration.hasVibrator() != null) {
-      Vibration.vibrate(duration: 500); // 🚨 Short vibration feedback
-    }
-
+    Vibration.vibrate(duration: 500); // 🚨 Short vibration feedback
+  
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text("👎 Oh no! You went over the limit!"),
@@ -98,8 +102,13 @@ class _LimitHabitsScreenState extends State<LimitHabitsScreen> {
   }
 
   void _incrementBooleanHabit(int index, int change) {
-    int newValue = habits[index].progress + change; // ✅ Allow exceeding goal
-    if (newValue < 0) newValue = 0; // Prevent negative values
+    int newValue = habits[index].progress + change;
+    if (newValue < 0) newValue = 0;
+
+    if (change < 0 && habits[index].streak > 0) {
+      habits[index].streak -= 1; // ✅ Reduce streak if they decrement progress
+    }
+
     _updateHabitProgress(index, newValue);
   }
 
@@ -391,8 +400,8 @@ class _LimitHabitsScreenState extends State<LimitHabitsScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddHabitDialog,
-        child: Icon(Icons.add),
         tooltip: "Add New Habit",
+        child: Icon(Icons.add),
       ),
     );
   }
