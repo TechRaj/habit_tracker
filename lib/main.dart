@@ -17,9 +17,9 @@ class HabitTrackerApp extends StatelessWidget {
       title: 'Habit Tracker',
       theme: ThemeData(
         primarySwatch: Colors.blue,
-        scaffoldBackgroundColor: Colors.white,
+        scaffoldBackgroundColor: Colors.transparent,
       ),
-      home: HomePage(), // 🌟 Main Navigation (Power & Limit Habits)
+      home: HomePage(), // 🌟 Main Navigation (Swipe between Pages)
     );
   }
 }
@@ -32,35 +32,71 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  final PageController _pageController = PageController();
   int _selectedIndex = 0;
 
-  // 🚀 New Pages: Main Dashboard, Power Habits, Limit Habits
+  // 🚀 Pages: Main Dashboard, Power Habits, Limit Habits
   final List<Widget> _pages = [
     MainScreen(), // 📊 Main Insights & Streaks
     PowerHabitsScreen(), // 🚀 Build Good Habits
     LimitHabitsScreen(), // 🔒 Reduce Negative Habits
   ];
 
-  void _onItemTapped(int index) {
+  // 🎨 Background Colors for Each Page
+  final List<Color> _backgroundColors = [
+    Colors.blueAccent,  // Main Screen
+    Colors.greenAccent, // Power Habits
+    Colors.redAccent,   // Limit Habits
+  ];
+
+  void _onPageChanged(int index) {
     setState(() {
       _selectedIndex = index;
     });
+    print("Swiped to page: $index");
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: _pages[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        items: [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-          BottomNavigationBarItem(icon: Icon(Icons.flash_on), label: "Power Habits"), // 🚀
-          BottomNavigationBarItem(icon: Icon(Icons.block), label: "Limit Habits"), // 🔒
-        ],
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-      ),
+  void _onItemTapped(int index) {
+    _pageController.animateToPage(
+      index,
+      duration: Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
     );
   }
+
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    body: AnimatedContainer(
+      duration: Duration(milliseconds: 500),
+      curve: Curves.easeInOut,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            _backgroundColors[_selectedIndex].withAlpha(200),
+            _backgroundColors[_selectedIndex],
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: PageView(
+        controller: _pageController,
+        onPageChanged: _onPageChanged,
+        physics: BouncingScrollPhysics(), // ✅ Enables swipe gestures in Chrome & mobile
+        children: _pages,
+      ),
+    ),
+    bottomNavigationBar: BottomNavigationBar(
+      type: BottomNavigationBarType.fixed,
+      items: [
+        BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
+        BottomNavigationBarItem(icon: Icon(Icons.flash_on), label: "Power Habits"),
+        BottomNavigationBarItem(icon: Icon(Icons.block), label: "Limit Habits"),
+      ],
+      currentIndex: _selectedIndex,
+      onTap: _onItemTapped,
+    ),
+  );
+}
 }
