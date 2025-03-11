@@ -14,6 +14,7 @@ class PowerHabitsScreen extends StatefulWidget {
 
 class _PowerHabitsScreenState extends State<PowerHabitsScreen> {
   List<Habit> habits = [];
+  Map<String, bool> expandedState = {}; // Track which habits are expanded
   late ConfettiController _confettiController;
 
   @override
@@ -27,6 +28,9 @@ class _PowerHabitsScreenState extends State<PowerHabitsScreen> {
   void _loadHabits() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? savedData = prefs.getString('power_habits');
+    for (var habit in habits) {
+      expandedState.putIfAbsent(habit.name, () => false);
+    }
     if (savedData != null) {
       setState(() {
         habits = (json.decode(savedData) as List)
@@ -43,6 +47,15 @@ class _PowerHabitsScreenState extends State<PowerHabitsScreen> {
         ];
       });
       _saveHabits();
+    }
+    _loadHabitHistory();
+  }
+
+  void _loadHabitHistory() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    for (var habit in habits) {
+      List<String> history = prefs.getStringList('history_${habit.name}') ?? List.filled(7, '⚪');
+      habit.history = history;
     }
   }
 
@@ -103,9 +116,32 @@ class _PowerHabitsScreenState extends State<PowerHabitsScreen> {
           ),
         );
       }
+      _updateHabitHistory(index, completed);
     });
 
     _saveHabits();
+  }
+
+  void _updateHabitHistory(int index, bool completed) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<String> history = prefs.getStringList('history_${habits[index].name}') ?? List.filled(7, '⚪');
+
+    history.add(completed ? '🟢' : '🔴');
+    if (history.length > 7) history.removeAt(0);
+
+    prefs.setStringList('history_${habits[index].name}', history);
+    setState(() {
+      habits[index].history = history;
+    });
+  }
+
+  double _calculateConsistency(Habit habit) {
+    int completedDays = habit.history.where((day) => day == '🟢').length;
+    int totalTrackedDays = habit.history.where((day) => day != '⚪').length;
+  
+    if (totalTrackedDays == 0) return 0; // ✅ Prevent division by zero
+
+    return (completedDays / totalTrackedDays) * 100;
   }
 
   void _incrementBooleanHabit(int index, int change) {
@@ -289,26 +325,26 @@ class _PowerHabitsScreenState extends State<PowerHabitsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        toolbarHeight: 100, 
+        toolbarHeight: 100,
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: Text(
           "🚀 Power Habits",
           style: GoogleFonts.roboto(
-            fontSize: 48,
+            fontSize: 36,
             fontWeight: FontWeight.bold,
-            color: Colors.black, 
+            color: Colors.black,
           ),
         ),
         centerTitle: true,
       ),
-      body: Stack( // Use Stack to overlay confetti on top of everything
+      body: Stack(
         children: [
           ListView.builder(
             itemCount: habits.length,
             itemBuilder: (context, index) {
               bool isBoolean = habits[index].goal == 1;
-              bool useButtons = habits[index].goal <= 10; // UI switch condition
+              bool useButtons = habits[index].goal <= 10;
 
               return Dismissible(
                 key: Key(habits[index].name),
@@ -323,94 +359,133 @@ class _PowerHabitsScreenState extends State<PowerHabitsScreen> {
                   return await _showDeleteConfirmationDialog(index);
                 },
                 child: Card(
-                  child: ListTile(
-                    title: Text(habits[index].name),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // ✅ Shortened Progress Bar with Dedicated Streak Space
-                        Row(
+                  child: Column(
+                    children: [
+                      ListTile(
+                        title: Text(habits[index].name),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
-                              flex: 3, // 75% width for progress bar
-                              child: LinearProgressIndicator(
-                                value: habits[index].progress / habits[index].goal,
-                                backgroundColor: Colors.grey[300],
-                                color: habits[index].progress >= habits[index].goal ? Colors.green : Colors.blue,
-                                minHeight: 12,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                            ),
-                            SizedBox(width: 12), // Space between progress bar and streak counter
-
-                            // ✅ Streak Counter 🔥 (Fixed Width)
-                            Container(
-                              width: 60, // Increase width slightly for better spacing
-                              alignment: Alignment.center,
-                              child: Text(
-                                habits[index].streak > 0 ? "🔥 ${habits[index].streak}" : "❄️ 0",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: habits[index].streak > 0 ? Colors.orange : Colors.blue,
-                                  fontSize: 20, // Reduce size slightly for balance
+                            // ✅ First Row: Progress Bar & Streak Display
+                            Row(
+                              children: [
+                                Expanded(
+                                  flex: 3,
+                                  child: LinearProgressIndicator(
+                                    value: habits[index].progress / habits[index].goal,
+                                    backgroundColor: Colors.grey[300],
+                                    color: habits[index].progress >= habits[index].goal ? Colors.green : Colors.blue,
+                                    minHeight: 12,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
                                 ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 4), // Space between progress bar and buttons
-
-                        // ✅ Row: Progress Text & Right-Aligned Buttons
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween, // Ensures proper spacing
-                          children: [
-                            // ✅ Progress Count
-                            Text("${habits[index].progress}/${habits[index].goal}"),
-
-                            // ✅ Right-Aligned Buttons (No `Expanded` needed)
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: isBoolean || useButtons
-                                  ? Row(
-                                      mainAxisSize: MainAxisSize.min, // Keep buttons compact
-                                      children: [
-                                        IconButton(
-                                          icon: Icon(Icons.remove, color: Colors.red),
-                                          onPressed: () => _incrementBooleanHabit(index, -1),
-                                        ),
-                                        IconButton(
-                                          icon: Icon(Icons.add, color: Colors.green),
-                                          onPressed: () => _incrementBooleanHabit(index, 1),
-                                        ),
-                                      ],
-                                    )
-                                  : ElevatedButton(
-                                      onPressed: () => _showNumericInputDialog(index),
-                                      child: Text("Enter Value"),
+                                SizedBox(width: 12),
+                                Container(
+                                  width: 60,
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    habits[index].streak > 0 ? "🔥 ${habits[index].streak}" : "❄️ 0",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: habits[index].streak > 0 ? Colors.orange : Colors.blue,
+                                      fontSize: 20,
                                     ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 4),
+
+                            // ✅ Second Row: Buttons & Expansion Arrow
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                // ✅ Progress Count
+                                Text("${habits[index].progress}/${habits[index].goal}"),
+
+                                // ✅ Right-Aligned Buttons & Expansion Arrow
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (isBoolean || useButtons) ...[
+                                      IconButton(
+                                        icon: Icon(Icons.remove, color: Colors.red),
+                                        onPressed: () => _incrementBooleanHabit(index, -1),
+                                      ),
+                                      IconButton(
+                                        icon: Icon(Icons.add, color: Colors.green),
+                                        onPressed: () => _incrementBooleanHabit(index, 1),
+                                      ),
+                                    ] else ...[
+                                      ElevatedButton(
+                                        onPressed: () => _showNumericInputDialog(index),
+                                        child: Text("Enter Value"),
+                                      ),
+                                    ],
+
+                                    // ✅ Expansion Arrow
+                                    IconButton(
+                                      icon: Icon(expandedState[habits[index].name] ?? false
+                                          ? Icons.keyboard_arrow_up
+                                          : Icons.keyboard_arrow_down),
+                                      onPressed: () {
+                                        setState(() {
+                                          expandedState[habits[index].name] = !(expandedState[habits[index].name] ?? false);
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
                           ],
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
+                      ),
 
-          // 🔥 Confetti Effect (Always on Top)
+                        // ✅ Expanded Habit History & Consistency
+                        if (expandedState[habits[index].name] ?? false) ...[
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Align(
+                            alignment: Alignment.centerLeft, // Ensures alignment to the left
+                            child: Text(
+                              "📅 Past 7 Days: ${habits[index].history?.join(' ') ?? '⚪⚪⚪⚪⚪⚪⚪'}",
+                              style: TextStyle(fontSize: 16),
+                            ),
+                            ),
+                            Align(
+                            alignment: Alignment.centerLeft, // Ensures alignment to the left
+                            child: Text(
+                              "📊 Consistency: ${_calculateConsistency(habits[index]).toStringAsFixed(1)}%",
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                            ),
+                          ],
+                          ),
+                        ),
+                        ],
+                      ],
+                      ),
+                    ),
+                    );
+                  },
+                  ),
+
+          // 🔥 Confetti Effect
           Align(
             alignment: Alignment.topCenter,
             child: ConfettiWidget(
               confettiController: _confettiController,
-              blastDirection: -3.14 / 2, // Shoots confetti upwards
-              blastDirectionality: BlastDirectionality.explosive, // Cover more screen
+              blastDirection: -3.14 / 2,
+              blastDirectionality: BlastDirectionality.explosive,
               colors: [Colors.blue, Colors.green, Colors.purple, Colors.orange],
-              numberOfParticles: 50, // More confetti
-              gravity: 1, // Make confetti fall faster
-              maxBlastForce: 15, // Increase explosion force
-              minBlastForce: 8,  // Keep some variety in confetti spread
+              numberOfParticles: 50,
+              gravity: 1,
+              maxBlastForce: 15,
+              minBlastForce: 8,
               shouldLoop: false,
             ),
           ),
@@ -423,12 +498,12 @@ class _PowerHabitsScreenState extends State<PowerHabitsScreen> {
           child: ElevatedButton(
             onPressed: _showAddHabitDialog,
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green.shade700, // Adjust to match screen theme
+              backgroundColor: Colors.green.shade700,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
-              padding: EdgeInsets.symmetric(vertical: 14), // Adjust for better UX
+              padding: EdgeInsets.symmetric(vertical: 14),
             ),
             child: Text(
               "Add New Habit",

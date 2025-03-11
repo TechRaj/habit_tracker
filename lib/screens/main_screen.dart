@@ -206,7 +206,7 @@ class _MainScreenState extends State<MainScreen> {
         title: Text(
           "🏆 Dashboard",
           style: GoogleFonts.roboto(
-            fontSize: 48,
+            fontSize: 36,
             fontWeight: FontWeight.bold,
             color: Colors.black, 
           ),

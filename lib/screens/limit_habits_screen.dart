@@ -15,6 +15,7 @@ class LimitHabitsScreen extends StatefulWidget {
 
 class _LimitHabitsScreenState extends State<LimitHabitsScreen> {
   List<Habit> habits = [];
+   Map<String, bool> expandedState = {};
   late ConfettiController _failConfettiController;
 
   @override
@@ -28,6 +29,9 @@ class _LimitHabitsScreenState extends State<LimitHabitsScreen> {
   void _loadHabits() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? savedData = prefs.getString('limit_habits');
+    for (var habit in habits) {
+      expandedState.putIfAbsent(habit.name, () => false);
+    }
     if (savedData != null) {
       setState(() {
         habits = (json.decode(savedData) as List)
@@ -43,6 +47,17 @@ class _LimitHabitsScreenState extends State<LimitHabitsScreen> {
         ];
       });
       _saveHabits();
+    }
+    _loadHabitHistory(); // ✅ Now moved to the correct position
+  }
+
+  void _loadHabitHistory() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    for (var habit in habits) {
+      List<String> history = prefs.getStringList('history_${habit.name}') ?? List.filled(7, '⚪');
+      setState(() {
+        habit.history = history; // ✅ Ensuring habit.history is always set
+      });
     }
   }
 
@@ -72,6 +87,7 @@ class _LimitHabitsScreenState extends State<LimitHabitsScreen> {
     setState(() {
       habits[index].progress = value;
       bool failed = habits[index].progress > habits[index].goal;
+      bool completed = !failed; // ✅ Define 'completed' before passing it
 
       if (failed) {
         habits[index].isCompleted = false;
@@ -83,8 +99,8 @@ class _LimitHabitsScreenState extends State<LimitHabitsScreen> {
           habits[index].isCompleted = true;
         }
       }
-
       _saveHabits();
+      _updateHabitHistory(index, completed); // ✅ Now 'completed' is correctly defined
     });
   }
 
@@ -100,6 +116,28 @@ class _LimitHabitsScreenState extends State<LimitHabitsScreen> {
         duration: Duration(seconds: 2),
       ),
     );
+  }
+
+  void _updateHabitHistory(int index, bool completed) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<String> history = prefs.getStringList('history_${habits[index].name}') ?? List.filled(7, '⚪');
+
+    history.add(completed ? '🟢' : '🔴');
+    if (history.length > 7) history.removeAt(0);
+
+    prefs.setStringList('history_${habits[index].name}', history);
+    setState(() {
+      habits[index].history = history;
+    });
+  }
+
+  double _calculateConsistency(Habit habit) {
+    int completedDays = habit.history.where((day) => day == '🟢').length;
+    int totalTrackedDays = habit.history.where((day) => day != '⚪').length;
+  
+    if (totalTrackedDays == 0) return 0; // ✅ Prevent division by zero
+
+    return (completedDays / totalTrackedDays) * 100;
   }
 
   void _incrementBooleanHabit(int index, int change) {
@@ -280,20 +318,18 @@ class _LimitHabitsScreenState extends State<LimitHabitsScreen> {
   }
 
   @override
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        toolbarHeight: 100, 
+        toolbarHeight: 100,
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: Text(
           "🔒 Limit Habits",
           style: GoogleFonts.roboto(
-            fontSize: 48,
+            fontSize: 36,
             fontWeight: FontWeight.bold,
-            color: Colors.black, 
+            color: Colors.black,
           ),
         ),
         centerTitle: true,
@@ -304,11 +340,12 @@ class _LimitHabitsScreenState extends State<LimitHabitsScreen> {
             itemCount: habits.length,
             itemBuilder: (context, index) {
               bool isBoolean = habits[index].goal == 1;
-              bool useButtons = habits[index].goal <= 10; // ✅ If goal is small, show `+` & `-` buttons
+              bool useButtons = habits[index].goal <= 10;
+              bool exceededLimit = habits[index].progress > habits[index].goal; // ✅ Track if limit is broken
 
               return Dismissible(
-                key: Key(habits[index].name), // Unique key for each habit
-                direction: DismissDirection.endToStart, // Swipe left to delete
+                key: Key(habits[index].name),
+                direction: DismissDirection.endToStart,
                 background: Container(
                   color: Colors.red,
                   alignment: Alignment.centerRight,
@@ -319,83 +356,122 @@ class _LimitHabitsScreenState extends State<LimitHabitsScreen> {
                   return await _showDeleteConfirmationDialog(index);
                 },
                 child: Card(
-                  child: ListTile(
-                    title: Text(habits[index].name),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // ✅ Progress Bar
-                        Row(
+                  child: Column(
+                    children: [
+                      ListTile(
+                        title: Text(habits[index].name),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
-                              flex: 3, // 75% width for progress bar
-                              child: LinearProgressIndicator(
-                                value: habits[index].progress / habits[index].goal,
-                                backgroundColor: Colors.grey[300],
-                                color: habits[index].progress > habits[index].goal ? Colors.red : Colors.blue,
-                                minHeight: 12,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                            ),
-                            SizedBox(width: 12),
-
-                            // ✅ Streak Counter (🔥 or ❄️)
-                            Container(
-                              width: 60,
-                              alignment: Alignment.center,
-                              child: Text(
-                                habits[index].streak > 0 ? "🔥 ${habits[index].streak}" : "❄️ 0",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: habits[index].streak > 0 ? Colors.orange : Colors.blue,
-                                  fontSize: 20,
+                            // ✅ First Row: Progress Bar & Streak Display
+                            Row(
+                              children: [
+                                Expanded(
+                                  flex: 3,
+                                  child: LinearProgressIndicator(
+                                    value: habits[index].progress / habits[index].goal,
+                                    backgroundColor: Colors.grey[300],
+                                    color: exceededLimit ? Colors.red : Colors.blue, // ✅ Red when over limit
+                                    minHeight: 12,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
                                 ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 4),
-
-                        // ✅ Row: Progress Count & Right-Aligned Buttons
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            // ✅ Progress Text
-                            Text("${habits[index].progress}/${habits[index].goal}"),
-
-                            // ✅ Right-Aligned Buttons
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: isBoolean || useButtons
-                                  ? Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        IconButton(
-                                          icon: Icon(Icons.remove, color: Colors.red),
-                                          onPressed: () => _incrementBooleanHabit(index, -1),
-                                        ),
-                                        IconButton(
-                                          icon: Icon(Icons.add, color: Colors.green),
-                                          onPressed: () => _incrementBooleanHabit(index, 1),
-                                        ),
-                                      ],
-                                    )
-                                  : ElevatedButton(
-                                      onPressed: () => _showNumericInputDialog(index),
-                                      child: Text("Enter Value"),
+                                SizedBox(width: 12),
+                                Container(
+                                  width: 60,
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    exceededLimit ? "💀 0" : (habits[index].streak > 0 ? "🔥 ${habits[index].streak}" : "❄️ 0"),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: exceededLimit ? Colors.red : (habits[index].streak > 0 ? Colors.orange : Colors.blue),
+                                      fontSize: 20,
                                     ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 4),
+
+                            // ✅ Second Row: Buttons & Expansion Arrow
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                // ✅ Progress Count
+                                Text("${habits[index].progress}/${habits[index].goal}"),
+
+                                // ✅ Right-Aligned Buttons & Expansion Arrow
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (isBoolean || useButtons) ...[
+                                      IconButton(
+                                        icon: Icon(Icons.remove, color: Colors.red),
+                                        onPressed: () => _incrementBooleanHabit(index, -1),
+                                      ),
+                                      IconButton(
+                                        icon: Icon(Icons.add, color: Colors.green),
+                                        onPressed: () => _incrementBooleanHabit(index, 1),
+                                      ),
+                                    ] else ...[
+                                      ElevatedButton(
+                                        onPressed: () => _showNumericInputDialog(index),
+                                        child: Text("Enter Value"),
+                                      ),
+                                    ],
+
+                                    // ✅ Expansion Arrow
+                                    IconButton(
+                                      icon: Icon(expandedState[habits[index].name] ?? false
+                                          ? Icons.keyboard_arrow_up
+                                          : Icons.keyboard_arrow_down),
+                                      onPressed: () {
+                                        setState(() {
+                                          expandedState[habits[index].name] = !(expandedState[habits[index].name] ?? false);
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
                           ],
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
+                      ),
 
-          // 👎 Thumbs Down Rain Effect
+                        // ✅ Expanded Habit History & Consistency
+                        if (expandedState[habits[index].name] ?? false) ...[
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Align(
+                            alignment: Alignment.centerLeft, // Ensures alignment to the left
+                            child: Text(
+                              "📅 Past 7 Days: ${habits[index].history?.join(' ') ?? '⚪⚪⚪⚪⚪⚪⚪'}",
+                              style: TextStyle(fontSize: 16),
+                            ),
+                            ),
+                            Align(
+                            alignment: Alignment.centerLeft, // Ensures alignment to the left
+                            child: Text(
+                              "📊 Consistency: ${_calculateConsistency(habits[index]).toStringAsFixed(1)}%",
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                            ),
+                          ],
+                          ),
+                        ),
+                        ],
+                      ],
+                      ),
+                    ),
+                    );
+                  },
+                  ),
+
+          // 👎 Thumbs Down Effect When Limit is Exceeded
           Align(
             alignment: Alignment.topCenter,
             child: ConfettiWidget(
@@ -419,12 +495,12 @@ class _LimitHabitsScreenState extends State<LimitHabitsScreen> {
           child: ElevatedButton(
             onPressed: _showAddHabitDialog,
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red, // Adjust to match screen theme
+              backgroundColor: Colors.red, // ✅ Limit habits button is red
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
-              padding: EdgeInsets.symmetric(vertical: 14), // Adjust for better UX
+              padding: EdgeInsets.symmetric(vertical: 14),
             ),
             child: Text(
               "Add New Habit",
