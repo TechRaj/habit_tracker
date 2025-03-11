@@ -44,7 +44,7 @@ class _HomePageState extends State<HomePage> {
 
   // 🎨 Background Colors for Each Page
   final List<Color> _backgroundColors = [
-    Colors.blueAccent,  // Main Screen
+    Colors.lightBlueAccent,  // Main Screen
     Colors.greenAccent, // Power Habits
     Colors.redAccent,   // Limit Habits
   ];
@@ -53,7 +53,6 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       _selectedIndex = index;
     });
-    print("Swiped to page: $index");
   }
 
   void _onItemTapped(int index) {

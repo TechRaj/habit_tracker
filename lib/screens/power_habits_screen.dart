@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/habit.dart';
 import 'package:confetti/confetti.dart';
-
+import 'package:google_fonts/google_fonts.dart';
 
 class PowerHabitsScreen extends StatefulWidget {
   const PowerHabitsScreen({super.key});
@@ -289,7 +289,20 @@ class _PowerHabitsScreenState extends State<PowerHabitsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("🚀 Power Habits")),
+      appBar: AppBar(
+        toolbarHeight: 100, 
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: Text(
+          "🚀 Power Habits",
+          style: GoogleFonts.roboto(
+            fontSize: 48,
+            fontWeight: FontWeight.bold,
+            color: Colors.black, 
+          ),
+        ),
+        centerTitle: true,
+      ),
       body: Stack( // Use Stack to overlay confetti on top of everything
         children: [
           ListView.builder(

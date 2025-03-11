@@ -4,6 +4,7 @@ import 'dart:convert';
 import '../models/habit.dart';
 import 'package:confetti/confetti.dart';
 import 'package:vibration/vibration.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class LimitHabitsScreen extends StatefulWidget {
   const LimitHabitsScreen({super.key});
@@ -283,7 +284,20 @@ class _LimitHabitsScreenState extends State<LimitHabitsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("🔒 Limit Habits")),
+      appBar: AppBar(
+        toolbarHeight: 100, 
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: Text(
+          "🔒 Limit Habits",
+          style: GoogleFonts.roboto(
+            fontSize: 48,
+            fontWeight: FontWeight.bold,
+            color: Colors.black, 
+          ),
+        ),
+        centerTitle: true,
+      ),
       body: Stack(
         children: [
           ListView.builder(
