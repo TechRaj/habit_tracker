@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'screens/main_screen.dart'; // Main Dashboard with Stats
 import 'screens/power_habits_screen.dart'; // 🚀 Power Habits
 import 'screens/limit_habits_screen.dart'; // 🔒 Limit Habits
+import 'package:firebase_core/firebase_core.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   runApp(HabitTrackerApp());
 }
 
