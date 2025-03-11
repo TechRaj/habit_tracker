@@ -16,7 +16,6 @@ class _PowerHabitsScreenState extends State<PowerHabitsScreen> {
   List<Habit> habits = [];
   late ConfettiController _confettiController;
 
-
   @override
   void initState() {
     super.initState();
@@ -417,10 +416,26 @@ class _PowerHabitsScreenState extends State<PowerHabitsScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAddHabitDialog,
-        tooltip: "Add New Habit",
-        child: Icon(Icons.add),
+      bottomNavigationBar: Padding(
+        padding: EdgeInsets.all(12),
+        child: SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: _showAddHabitDialog,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green.shade700, // Adjust to match screen theme
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: EdgeInsets.symmetric(vertical: 14), // Adjust for better UX
+            ),
+            child: Text(
+              "Add New Habit",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ),
       ),
     );
   }

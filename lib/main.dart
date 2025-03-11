@@ -87,6 +87,8 @@ Widget build(BuildContext context) {
       ),
     ),
     bottomNavigationBar: BottomNavigationBar(
+      selectedItemColor: _backgroundColors[_selectedIndex], // Match selected color with page color
+      unselectedItemColor: Colors.grey, // Keep unselected items neutral
       type: BottomNavigationBarType.fixed,
       items: [
         BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
