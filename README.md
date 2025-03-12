@@ -3,8 +3,8 @@
 A **simple, engaging, and user-friendly** habit tracker app built with **Flutter**. This app helps users build positive habits while eliminating negative behaviors through **streak tracking, insightful analytics, and a sleek UI/UX**. By providing **daily tracking, visual progress indicators, and smart habit history**, the app keeps users motivated and accountable.
 
 ![Home page](UI%20screenshots/main_screen.png)
-![Power%20habits%20page](UI screenshots/power_habits.png)
-![Limit%20habits%20page](UI screenshots/limit_habits.png)
+![Power habits page](UI%20screenshots/power_habits.png)
+![Limit habits page](UI%20screenshots/limit_habits.png)
 ---
 
 ## 📌 Features
