@@ -3,6 +3,7 @@ import 'screens/main_screen.dart'; // Main Dashboard with Stats
 import 'screens/power_habits_screen.dart'; // 🚀 Power Habits
 import 'screens/limit_habits_screen.dart'; // 🔒 Limit Habits
 
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   //await Firebase.initializeApp();
@@ -46,9 +47,9 @@ class _HomePageState extends State<HomePage> {
 
   // 🎨 Background Colors for Each Page
   final List<Color> _backgroundColors = [
-    Colors.lightBlueAccent,  // Main Screen
-    Colors.greenAccent, // Power Habits
-    Colors.redAccent,   // Limit Habits
+    Color.fromARGB(255, 85, 182, 217),  // Main Screen
+    Color(0xFF77DD77), // Power Habits
+    Color(0xFFF4A7B9),   // Limit Habits
   ];
 
   void _onPageChanged(int index) {
